@@ -1,8 +1,48 @@
+# Python
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual Environment
 venv/
-.env
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
-*.csv
-*.npy
+Thumbs.db
+
+# Data files
+data/raw/*.csv
+data/processed/*.npy
+data/processed/*.csv
+
+# Models and logs
+*.pth
+*.pt
+*.pkl
+*.joblib
+models/
+logs/
+outputs/
+results/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+.env.local
