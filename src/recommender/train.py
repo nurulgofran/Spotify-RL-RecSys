@@ -76,5 +76,5 @@ def train(n_episodes=2000, max_t=100):
 
     # 3. Save the trained model weights
     torch.save(agent.q_network.state_dict(), "q_network_checkpoint.pth")
-    print(f"\nTraining finished. Model saved to q_network_checkpoint.pth")
+    print("\nTraining finished. Model saved to q_network_checkpoint.pth")
     return scores
