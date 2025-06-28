@@ -1,6 +1,6 @@
 # A Deep Reinforcement Learning Music Recommender
 
-![Project Banner](https://imgur.com/a/WMXqugO)
+![Project Banner](https://i.imgur.com/a2e3F1F.png)
 
 [![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
