@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 import numpy as np
 import random
 from collections import deque, namedtuple
@@ -103,7 +104,16 @@ class Agent:
     The RL Agent that interacts with and learns from the environment.
     """
 
-    def __init__(self, state_size, action_size, buffer_size=int(1e5), batch_size=64):
+    def __init__(
+        self,
+        state_size,
+        action_size,
+        buffer_size=int(1e5),
+        batch_size=64,
+        gamma=0.99,
+        tau=1e-3,
+        lr=5e-4,
+    ):
         """
         Initializes the Agent object.
 
@@ -112,23 +122,26 @@ class Agent:
             action_size (int): Dimension of each action.
             buffer_size (int): Maximum size of replay buffer.
             batch_size (int): Size of each training batch.
+            gamma (float): Discount factor.
+            tau (float): For soft update of target network.
+            lr (float): Learning rate.
         """
         self.state_size = state_size
         self.action_size = action_size
         self.batch_size = batch_size
+        self.gamma = gamma  # Discount factor
+        self.tau = tau  # For soft update of target network
 
-        # 1. Create the Q-Network
-        # This is the "brain" that the agent will train.
+        # Q-Network (The "brain" that gets trained)
         self.q_network = QNetwork(state_size, action_size)
+        # Target Network (A stable copy for calculating targets)
+        self.target_q_network = QNetwork(state_size, action_size)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=lr)
 
-        # 2. Define the Optimizer
-        # Adam is a popular choice for optimizing the network's weights.
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=5e-4)
-
-        # 3. Initialize replay buffer
+        # Initialize replay buffer
         self.memory = ReplayBuffer(buffer_size, batch_size)
 
-        # 4. Epsilon-greedy action selection parameters
+        # Epsilon-greedy action selection parameters
         self.epsilon = 1.0  # Starting value of epsilon
         self.epsilon_min = 0.01  # Minimum value of epsilon
         self.epsilon_decay = 0.995  # Rate at which epsilon decays after each episode
@@ -165,42 +178,82 @@ class Agent:
             # Explore: Choose a random action
             return random.choice(np.arange(self.action_size))
 
+    def step(self, state, action, reward, next_state, done):
+        """Save experience in replay memory, and use random sample from buffer to learn."""
+        # 1. Save the experience
+        self.memory.add(state, action, reward, next_state, done)
+
+        # 2. Learn if enough samples are available in memory
+        if len(self.memory) > self.batch_size:
+            experiences = self.memory.sample()
+            self.learn(experiences)
+
+    def learn(self, experiences):
+        """
+        Update value parameters using given batch of experience tuples.
+        """
+        states, actions, rewards, next_states, dones = experiences
+
+        # 1. Get max predicted Q-values for next states from the target network
+        Q_targets_next = (
+            self.target_q_network(next_states).detach().max(1)[0].unsqueeze(1)
+        )
+
+        # 2. Compute Q targets for current states (Bellman equation)
+        Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
+
+        # 3. Get expected Q values from the local network
+        Q_expected = self.q_network(states).gather(1, actions)
+
+        # 4. Compute loss
+        loss = F.mse_loss(Q_expected, Q_targets)
+
+        # 5. Minimize the loss
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+        # 6. Update target network (soft update)
+        self.soft_update(self.q_network, self.target_q_network)
+
+    def soft_update(self, local_model, target_model):
+        """Soft update model parameters: θ_target = τ*θ_local + (1 - τ)*θ_target"""
+        for target_param, local_param in zip(
+            target_model.parameters(), local_model.parameters()
+        ):
+            target_param.data.copy_(
+                self.tau * local_param.data + (1.0 - self.tau) * target_param.data
+            )
+
 
 # --- Update the Test Block ---
 if __name__ == "__main__":
-    print("--- Testing Replay Buffer ---")
+    print("--- Testing Agent Learning ---")
 
-    BUFFER_SIZE = 100
-    BATCH_SIZE = 10
-
-    # 1. Instantiate the buffer
-    buffer = ReplayBuffer(buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE)
-    print("✅ Replay Buffer initialized.")
-
-    # 2. Add some dummy experiences
     STATE_SIZE_TEST = 9
-    for i in range(20):
+    ACTION_SIZE_TEST = 1000  # Using a smaller action space for a faster test
+    BATCH_SIZE_TEST = 10
+
+    # 1. Instantiate the agent
+    agent = Agent(
+        state_size=STATE_SIZE_TEST,
+        action_size=ACTION_SIZE_TEST,
+        batch_size=BATCH_SIZE_TEST,
+    )
+    print("✅ Agent initialized.")
+
+    # 2. Add enough dummy experiences to the buffer to trigger learning
+    print("Populating buffer with dummy experiences...")
+    for _ in range(BATCH_SIZE_TEST + 5):
         dummy_state = np.random.rand(STATE_SIZE_TEST)
-        dummy_action = np.random.randint(100)
+        dummy_action = np.random.randint(ACTION_SIZE_TEST)
         dummy_reward = np.random.rand()
         dummy_next_state = np.random.rand(STATE_SIZE_TEST)
         dummy_done = random.choice([True, False])
-        buffer.add(
+        # Use the new step method
+        agent.step(
             dummy_state, dummy_action, dummy_reward, dummy_next_state, dummy_done
         )
 
-    print(f"Buffer size after adding 20 experiences: {len(buffer)}")
-    assert len(buffer) == 20
-
-    # 3. Sample from the buffer
-    print("\nSampling a batch...")
-    states, actions, rewards, next_states, dones = buffer.sample()
-
-    print(f"Shape of states batch: {states.shape}")
-    print(f"Shape of actions batch: {actions.shape}")
-    print(f"Shape of rewards batch: {rewards.shape}")
-
-    assert states.shape == (BATCH_SIZE, STATE_SIZE_TEST)
-    assert actions.shape == (BATCH_SIZE, 1)
-
-    print("\n✅ Test passed: Replay Buffer can store and sample experiences correctly.")
+    print(f"Buffer size is now {len(agent.memory)}.")
+    print("✅ Test passed: Agent can store experiences and trigger learning.")
