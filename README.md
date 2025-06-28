@@ -1,13 +1,13 @@
-# HarmonAI: A Deep Reinforcement Learning Music Recommender
+# A Deep Reinforcement Learning Music Recommender
 
-![Project Banner](https://i.imgur.com/vHqX2gM.png)
+![Project Banner](https://imgur.com/a/WMXqugO)
 
 [![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Framework: PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![Built with: scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
 
-HarmonAI is a cutting-edge music recommendation system that learns a user's taste in real-time. Instead of traditional methods, this project uses **Deep Reinforcement Learning (DRL)** to build an intelligent agent that recommends songs. The agent learns from its decisions, continuously refining its policy to create the perfect personalized playlist.
+This is a cutting-edge music recommendation system that learns a user's taste in real-time. Instead of traditional methods, this project uses **Deep Reinforcement Learning (DRL)** to build an intelligent agent that recommends songs. The agent learns from its decisions, continuously refining its policy to create the perfect personalized playlist.
 
 This repository contains the full end-to-end implementation, from raw data processing to training a sophisticated DQN agent, using a public Spotify dataset.
 
