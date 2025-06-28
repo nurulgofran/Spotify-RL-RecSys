@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
 from src.config import PROCESSED_FEATURES_PATH, TRACK_IDS_PATH
 
 
@@ -45,6 +46,8 @@ class SongRecommenderEnvironment:
 
         # Add a placeholder for the current state
         self.current_state = None
+        # Add a counter for the episode length
+        self.episode_step_counter = 0
 
         print("✅ Environment initialized successfully.")
         print(f"   - Number of songs (actions): {self.action_space_size}")
@@ -67,6 +70,8 @@ class SongRecommenderEnvironment:
 
         # 2. Set the initial state to the features of that random song
         self.current_state = self.song_features[random_song_index]
+        # Reset the step counter
+        self.episode_step_counter = 0
 
         random_track_id = self.track_ids[random_song_index]
         print(f"   - Starting song ID: {random_track_id}")
@@ -75,20 +80,67 @@ class SongRecommenderEnvironment:
         # 3. Return the initial state to the agent
         return self.current_state
 
+    def step(self, action_index):
+        """
+        Processes one step in the environment.
 
-# You can update the test block at the bottom of the file
+        Args:
+            action_index (int): The index of the song recommended by the agent.
+
+        Returns:
+            tuple: A tuple containing (next_state, reward, done).
+        """
+        if self.current_state is None:
+            raise RuntimeError("Cannot call step() before calling reset().")
+
+        self.episode_step_counter += 1
+
+        # 1. Get the feature vector for the song the agent chose (the action)
+        action_song_features = self.song_features[action_index].reshape(1, -1)
+
+        # 2. Calculate the reward
+        # The reward is the cosine similarity between the current state and the chosen song.
+        # We reshape the current_state to be a 2D array for the function.
+        current_state_reshaped = self.current_state.reshape(1, -1)
+        reward = cosine_similarity(current_state_reshaped, action_song_features)[0][0]
+
+        # 3. Determine the next state
+        # The next state is simply the features of the song just recommended.
+        next_state = self.song_features[action_index]
+
+        # Update the environment's current state
+        self.current_state = next_state
+
+        # 4. Check if the episode is done
+        # For simplicity, we'll end the episode after 20 recommendations.
+        done = self.episode_step_counter >= 20
+
+        return next_state, reward, done
+
+
+# Update the test block at the bottom of the file
 if __name__ == "__main__":
     try:
         env = SongRecommenderEnvironment()
         initial_state = env.reset()
 
-        print("\n--- Testing Reset ---")
-        print(f"Shape of initial state: {initial_state.shape}")
-        print(f"Initial state vector (first 5 features): {initial_state[:5]}")
+        print("\n--- Testing Step ---")
+        # Simulate taking a random action
+        random_action = np.random.randint(0, env.action_space_size)
+        print(f"Simulating action: Recommend song with index {random_action}")
 
-        # Verify that the returned state matches the environment's current state
-        assert np.array_equal(initial_state, env.current_state)
-        print("\n✅ Test passed: reset() returned the correct state.")
+        # Take a step
+        next_state, reward, done = env.step(random_action)
+
+        print(f"Next State (first 5 features): {next_state[:5]}")
+        print(f"Reward received: {reward:.4f}")
+        print(f"Episode done: {done}")
+
+        # Verify shapes and types
+        assert next_state.shape == (env.state_space_size,)
+        assert isinstance(reward, float)
+        assert isinstance(done, bool)
+        print("\n✅ Test passed: step() returned the correct data types and shapes.")
 
     except FileNotFoundError:
         print("\nTest failed. Make sure your processed data exists.")
