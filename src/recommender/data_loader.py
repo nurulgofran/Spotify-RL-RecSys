@@ -23,5 +23,4 @@ if __name__ == "__main__":
         print(spotify_df.head())
 
         print("\nInformation about the dataset columns and data types:")
-        # Using .info() gives a concise summary of the DataFrame
         spotify_df.info()
