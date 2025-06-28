@@ -1,33 +1,30 @@
+# src/recommender/preprocess.py
+
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 
+# Import the configuration from our new config file
+from src.config import RAW_DATA_PATH, PROCESSED_FEATURES_PATH, TRACK_IDS_PATH
 
-def preprocess_spotify_data(
-    raw_data_path="dataset.csv", output_path="song_features.npy"
-):
+
+def preprocess_spotify_data():
     """
     Loads the raw Spotify dataset, selects and normalizes audio features,
-    and saves the resulting feature matrix.
-
-    Args:
-        raw_data_path (str): Path to the raw dataset.csv file.
-        output_path (str): Path to save the processed .npy file.
+    and saves the resulting feature matrix and track IDs.
     """
     print("Starting data preprocessing...")
 
-    # 1. Load the dataset
+    # 1. Load the dataset using the path from config
     try:
-        df = pd.read_csv(raw_data_path)
-        # Drop rows with missing track_id, as they are unusable
+        df = pd.read_csv(RAW_DATA_PATH)
         df.dropna(subset=["track_id"], inplace=True)
         print(f"✅ Raw data loaded. Shape: {df.shape}")
     except FileNotFoundError:
-        print(f"❌ Error: Raw data file not found at '{raw_data_path}'.")
+        print(f"❌ Error: Raw data file not found at '{RAW_DATA_PATH}'.")
         return
 
-    # 2. Select the numerical audio features for our model
-    # These will define our state space and be used for reward calculation.
+    # 2. Select the numerical audio features
     feature_columns = [
         "acousticness",
         "danceability",
@@ -39,44 +36,27 @@ def preprocess_spotify_data(
         "tempo",
         "valence",
     ]
-
-    print(f"\nSelected feature columns: {feature_columns}")
-
-    # Create a new DataFrame with only the essential columns
     df_features = df[["track_id"] + feature_columns].copy()
 
     # 3. Normalize the features
-    # We use MinMaxScaler to scale features to a range of [0, 1].
-    # This is essential for fair similarity calculations and for neural networks.
     scaler = MinMaxScaler()
-
-    # Fit and transform the feature columns
     df_features[feature_columns] = scaler.fit_transform(df_features[feature_columns])
+    print("✅ Features have been normalized to a [0, 1] scale.")
 
-    print("\n✅ Features have been normalized to a [0, 1] scale.")
-    print("Sample of normalized data:")
-    print(df_features.head())
-
-    # 4. Save the processed data for later use
-    # We save the features as a NumPy array for efficient loading.
-    # We also save the corresponding track_ids.
-
-    # Convert features to a NumPy array
+    # 4. Save the processed data
     song_feature_matrix = df_features[feature_columns].to_numpy()
-
-    # Get the list of track_ids in the same order
     track_ids = df_features["track_id"].tolist()
 
-    # Save the feature matrix
-    np.save(output_path, song_feature_matrix)
-
-    # Save the track_ids list
-    pd.Series(track_ids).to_csv("track_ids.csv", index=False, header=["track_id"])
+    np.save(PROCESSED_FEATURES_PATH, song_feature_matrix)
+    pd.Series(track_ids).to_csv(TRACK_IDS_PATH, index=False, header=["track_id"])
 
     print(f"\n✅ Preprocessing complete!")
-    print(f"Processed feature matrix saved to: {output_path}")
-    print(f"Track ID mapping saved to: track_ids.csv")
+    print(f"Processed feature matrix saved to: {PROCESSED_FEATURES_PATH}")
+    print(f"Track ID mapping saved to: {TRACK_IDS_PATH}")
 
 
 if __name__ == "__main__":
+    # This part allows you to run the script directly for testing
+    # Note: You might need to adjust your VS Code run configuration
+    # or run from the root directory as `python -m src.recommender.preprocess`
     preprocess_spotify_data()
