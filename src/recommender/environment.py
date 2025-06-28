@@ -115,7 +115,14 @@ class SongRecommenderEnvironment:
         # 2. Calculate the reward
         # The current state is the mean of the history
         current_state_reshaped = self.current_state.reshape(1, -1)
-        reward = cosine_similarity(current_state_reshaped, action_song_features)[0][0]
+        # Subtract a baseline to center the reward around 0.
+        # A similarity of 0.5 (moderately similar) now gives a reward of 0.
+        # The agent is now punished for bad recommendations (<0.5) and rewarded for good ones (>0.5).
+        REWARD_BASELINE = 0.5
+        reward = (
+            cosine_similarity(current_state_reshaped, action_song_features)[0][0]
+            - REWARD_BASELINE
+        )
 
         # 3. UPDATE THE STATE HISTORY
         # Add the new song's features to the history
