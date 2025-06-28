@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from src.config import PROCESSED_FEATURES_PATH, TRACK_IDS_PATH
+from collections import deque
 
 
 class SongRecommenderEnvironment:
@@ -14,11 +15,15 @@ class SongRecommenderEnvironment:
     is to recommend songs that match the user's current taste (state).
     """
 
-    def __init__(self):
+    def __init__(self, history_length=5):
         """
         Initializes the environment by loading the processed song data.
+
+        Args:
+            history_length (int): The number of past songs to consider for the state.
         """
         print("Initializing the recommendation environment...")
+        self.history_length = history_length
 
         # 1. Load the processed song feature matrix and track IDs
         try:
@@ -44,7 +49,9 @@ class SongRecommenderEnvironment:
         # The state space size is the number of features.
         self.state_space_size = self.song_features.shape[1]
 
-        # Add a placeholder for the current state
+        # NEW STATE REPRESENTATION
+        # Use a deque to store the feature vectors of the last few songs
+        self.song_history = deque(maxlen=self.history_length)
         self.current_state = None
         # Add a counter for the episode length
         self.episode_step_counter = 0
@@ -53,31 +60,38 @@ class SongRecommenderEnvironment:
         print(f"   - Number of songs (actions): {self.action_space_size}")
         print(f"   - Number of features (state size): {self.state_space_size}")
 
+    def _get_state(self):
+        """Calculates the state as the mean of the song history."""
+        # The state is the average of the features of the songs in the history
+        return np.mean(list(self.song_history), axis=0)
+
     def reset(self):
         """
         Resets the environment to start a new user session (episode).
-
-        It simulates a user starting their listening by picking a random song.
-        The features of this song become the initial state.
 
         Returns:
             np.ndarray: The initial state vector.
         """
         print("\n🔄 Resetting environment for new episode...")
 
-        # 1. Choose a random song index to start the session
-        random_song_index = np.random.randint(0, self.action_space_size)
+        # Clear the history
+        self.song_history.clear()
 
-        # 2. Set the initial state to the features of that random song
-        self.current_state = self.song_features[random_song_index]
-        # Reset the step counter
+        # To start, we need to fill the history. We'll do this by picking one
+        # random song and duplicating its features `history_length` times.
+        random_song_index = np.random.randint(0, self.action_space_size)
+        initial_song_features = self.song_features[random_song_index]
+        for _ in range(self.history_length):
+            self.song_history.append(initial_song_features)
+
+        self.current_state = self._get_state()
         self.episode_step_counter = 0
 
         random_track_id = self.track_ids[random_song_index]
         print(f"   - Starting song ID: {random_track_id}")
         print("   - Initial state set.")
 
-        # 3. Return the initial state to the agent
+        # Return the initial state to the agent
         return self.current_state
 
     def step(self, action_index):
@@ -99,14 +113,15 @@ class SongRecommenderEnvironment:
         action_song_features = self.song_features[action_index].reshape(1, -1)
 
         # 2. Calculate the reward
-        # The reward is the cosine similarity between the current state and the chosen song.
-        # We reshape the current_state to be a 2D array for the function.
+        # The current state is the mean of the history
         current_state_reshaped = self.current_state.reshape(1, -1)
         reward = cosine_similarity(current_state_reshaped, action_song_features)[0][0]
 
-        # 3. Determine the next state
-        # The next state is simply the features of the song just recommended.
-        next_state = self.song_features[action_index]
+        # 3. UPDATE THE STATE HISTORY
+        # Add the new song's features to the history
+        self.song_history.append(self.song_features[action_index])
+        # The new state is the updated average of the history
+        next_state = self._get_state()
 
         # Update the environment's current state
         self.current_state = next_state
