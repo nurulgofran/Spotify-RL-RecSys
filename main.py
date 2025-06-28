@@ -3,10 +3,9 @@ from src.recommender.train import train
 
 
 def main():
-    print("--- Starting Music Recommender Pipeline ---")
-    print("\n[Phase 2/2] Training Agent...")
+    print("Starting Music Recommender Pipeline...")
     scores = train()
-    print("\n--- Pipeline Finished ---")
+    print("Pipeline completed.")
 
 
 if __name__ == "__main__":

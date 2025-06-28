@@ -7,7 +7,6 @@ from collections import deque
 
 class SongRecommenderEnvironment:
     def __init__(self, history_length=5):
-        print("Initializing the recommendation environment...")
         self.history_length = history_length
 
         try:
@@ -17,7 +16,6 @@ class SongRecommenderEnvironment:
         except FileNotFoundError as e:
             print("❌ Error: Could not find processed data files.")
             print("  Please run the preprocessing script first.")
-            print(f"  Details: {e}")
             raise
 
         self.track_id_to_index = {
@@ -31,16 +29,10 @@ class SongRecommenderEnvironment:
         self.current_state = None
         self.episode_step_counter = 0
 
-        print("✅ Environment initialized successfully.")
-        print(f"   - Number of songs (actions): {self.action_space_size}")
-        print(f"   - Number of features (state size): {self.state_space_size}")
-
     def _get_state(self):
         return np.mean(list(self.song_history), axis=0)
 
     def reset(self):
-        print("\n🔄 Resetting environment for new episode...")
-
         self.song_history.clear()
 
         random_song_index = np.random.randint(0, self.action_space_size)
@@ -50,10 +42,6 @@ class SongRecommenderEnvironment:
 
         self.current_state = self._get_state()
         self.episode_step_counter = 0
-
-        random_track_id = self.track_ids[random_song_index]
-        print(f"   - Starting song ID: {random_track_id}")
-        print("   - Initial state set.")
 
         return self.current_state
 
@@ -86,21 +74,13 @@ if __name__ == "__main__":
     try:
         env = SongRecommenderEnvironment()
         initial_state = env.reset()
-
-        print("\n--- Testing Step ---")
         random_action = np.random.randint(0, env.action_space_size)
-        print(f"Simulating action: Recommend song with index {random_action}")
-
         next_state, reward, done = env.step(random_action)
-
-        print(f"Next State (first 5 features): {next_state[:5]}")
-        print(f"Reward received: {reward:.4f}")
-        print(f"Episode done: {done}")
 
         assert next_state.shape == (env.state_space_size,)
         assert isinstance(reward, float)
         assert isinstance(done, bool)
-        print("\n✅ Test passed: step() returned the correct data types and shapes.")
+        print("✅ Environment test passed")
 
     except FileNotFoundError:
         print("\nTest failed. Make sure your processed data exists.")

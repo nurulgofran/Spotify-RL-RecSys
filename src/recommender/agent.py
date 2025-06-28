@@ -49,8 +49,6 @@ class QNetwork(nn.Module):
     def __init__(self, state_size, action_size):
         super(QNetwork, self).__init__()
 
-        print("Initializing Q-Network...")
-
         self.layers = nn.Sequential(
             nn.Linear(state_size, 128),
             nn.ReLU(),
@@ -58,10 +56,6 @@ class QNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(128, action_size),
         )
-
-        print("✅ Q-Network initialized successfully.")
-        print(f"   - Input size: {state_size}")
-        print(f"   - Output size: {action_size}")
 
     def forward(self, state):
         return self.layers(state)
@@ -143,8 +137,6 @@ class Agent:
 
 
 if __name__ == "__main__":
-    print("--- Testing Agent Learning ---")
-
     STATE_SIZE_TEST = 9
     ACTION_SIZE_TEST = 1000
     BATCH_SIZE_TEST = 10
@@ -154,9 +146,7 @@ if __name__ == "__main__":
         action_size=ACTION_SIZE_TEST,
         batch_size=BATCH_SIZE_TEST,
     )
-    print("✅ Agent initialized.")
 
-    print("Populating buffer with dummy experiences...")
     for _ in range(BATCH_SIZE_TEST + 5):
         dummy_state = np.random.rand(STATE_SIZE_TEST)
         dummy_action = np.random.randint(ACTION_SIZE_TEST)
@@ -167,5 +157,4 @@ if __name__ == "__main__":
             dummy_state, dummy_action, dummy_reward, dummy_next_state, dummy_done
         )
 
-    print(f"Buffer size is now {len(agent.memory)}.")
-    print("✅ Test passed: Agent can store experiences and trigger learning.")
+    print("✅ Agent test passed")
