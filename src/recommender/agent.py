@@ -3,6 +3,8 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
+import random
 
 
 class QNetwork(nn.Module):
@@ -44,32 +46,97 @@ class QNetwork(nn.Module):
         return self.layers(state)
 
 
-# --- Test Block ---
-# This allows us to test the file directly.
+class Agent:
+    """
+    The RL Agent that interacts with and learns from the environment.
+    """
+
+    def __init__(self, state_size, action_size):
+        """
+        Initializes the Agent object.
+
+        Args:
+            state_size (int): Dimension of each state.
+            action_size (int): Dimension of each action.
+        """
+        self.state_size = state_size
+        self.action_size = action_size
+
+        # 1. Create the Q-Network
+        # This is the "brain" that the agent will train.
+        self.q_network = QNetwork(state_size, action_size)
+
+        # 2. Define the Optimizer
+        # Adam is a popular choice for optimizing the network's weights.
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=5e-4)
+
+        # 3. Epsilon-greedy action selection parameters
+        self.epsilon = 1.0  # Starting value of epsilon
+        self.epsilon_min = 0.01  # Minimum value of epsilon
+        self.epsilon_decay = 0.995  # Rate at which epsilon decays after each episode
+
+    def act(self, state):
+        """
+        Returns an action for a given state using the epsilon-greedy policy.
+
+        Args:
+            state (np.ndarray): The current state from the environment.
+
+        Returns:
+            int: The index of the action (song) to take.
+        """
+        # --- Epsilon-Greedy Action Selection ---
+        if random.random() > self.epsilon:
+            # Exploit: Choose the best action from the Q-network
+            state = (
+                torch.from_numpy(state).float().unsqueeze(0)
+            )  # Convert state to PyTorch tensor
+
+            # Set the network to evaluation mode (important for inference)
+            self.q_network.eval()
+            with (
+                torch.no_grad()
+            ):  # We don't need to calculate gradients for action selection
+                action_values = self.q_network(state)
+            # Set it back to training mode
+            self.q_network.train()
+
+            # Choose the action with the highest Q-value
+            return np.argmax(action_values.cpu().data.numpy())
+        else:
+            # Explore: Choose a random action
+            return random.choice(np.arange(self.action_size))
+
+
+# --- Update the Test Block ---
 if __name__ == "__main__":
-    print("--- Testing QNetwork ---")
+    print("--- Testing Agent ---")
 
-    # Define dummy sizes for testing purposes
-    STATE_SIZE_TEST = 9  # Our state has 9 features
-    ACTION_SIZE_TEST = 114000  # Our dataset has ~114k songs
+    STATE_SIZE_TEST = 9
+    ACTION_SIZE_TEST = 114000
 
-    # Create the network
-    net = QNetwork(state_size=STATE_SIZE_TEST, action_size=ACTION_SIZE_TEST)
-    print("\nNetwork Architecture:")
-    print(net)
+    # 1. Instantiate the agent
+    agent = Agent(state_size=STATE_SIZE_TEST, action_size=ACTION_SIZE_TEST)
+    print("✅ Agent initialized successfully.")
 
-    # Create a dummy state tensor to feed into the network
-    # The state should be a PyTorch tensor
-    dummy_state = torch.randn(STATE_SIZE_TEST)
-    print(f"\nShape of dummy state: {dummy_state.shape}")
+    # 2. Create a dummy state from the environment
+    dummy_state = np.random.rand(STATE_SIZE_TEST)
 
-    # Get the output from the network
-    # We must add a "batch dimension" using unsqueeze(0) for the network to accept it
-    q_values = net(dummy_state.unsqueeze(0))
+    # 3. Test the act() method
+    print("\nTesting act() method...")
 
-    print(f"Shape of output Q-values: {q_values.shape}")
+    # --- Test Exploration (epsilon = 1.0) ---
+    agent.epsilon = 1.0
+    print(f"Epsilon is {agent.epsilon}, so action should be random.")
+    action = agent.act(dummy_state)
+    print(f"Agent chose action (song index): {action}")
+    assert isinstance(action, int) or isinstance(action, np.int64)
 
-    # Verify that the output shape is correct
-    assert q_values.shape == (1, ACTION_SIZE_TEST)
+    # --- Test Exploitation (epsilon = 0.0) ---
+    agent.epsilon = 0.0
+    print(f"\nEpsilon is {agent.epsilon}, so action should be from the network.")
+    action = agent.act(dummy_state)
+    print(f"Agent chose action (song index): {action}")
+    assert isinstance(action, int) or isinstance(action, np.int64)
 
-    print("\n✅ Test passed: Network produces output with the correct shape.")
+    print("\n✅ Test passed: Agent can be created and can choose an action.")
