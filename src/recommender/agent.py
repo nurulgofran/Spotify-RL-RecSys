@@ -5,6 +5,58 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
+from collections import deque, namedtuple
+
+
+class ReplayBuffer:
+    """Fixed-size buffer to store experience tuples."""
+
+    def __init__(self, buffer_size, batch_size):
+        """
+        Initialize a ReplayBuffer object.
+
+        Args:
+            buffer_size (int): Maximum size of buffer.
+            batch_size (int): Size of each training batch.
+        """
+        self.memory = deque(maxlen=buffer_size)
+        self.batch_size = batch_size
+        self.experience = namedtuple(
+            "Experience",
+            field_names=["state", "action", "reward", "next_state", "done"],
+        )
+
+    def add(self, state, action, reward, next_state, done):
+        """Add a new experience to memory."""
+        e = self.experience(state, action, reward, next_state, done)
+        self.memory.append(e)
+
+    def sample(self):
+        """Randomly sample a batch of experiences from memory."""
+        experiences = random.sample(self.memory, k=self.batch_size)
+
+        # Convert the batch of experiences to PyTorch tensors
+        states = torch.from_numpy(
+            np.vstack([e.state for e in experiences if e is not None])
+        ).float()
+        actions = torch.from_numpy(
+            np.vstack([e.action for e in experiences if e is not None])
+        ).long()
+        rewards = torch.from_numpy(
+            np.vstack([e.reward for e in experiences if e is not None])
+        ).float()
+        next_states = torch.from_numpy(
+            np.vstack([e.next_state for e in experiences if e is not None])
+        ).float()
+        dones = torch.from_numpy(
+            np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)
+        ).float()
+
+        return (states, actions, rewards, next_states, dones)
+
+    def __len__(self):
+        """Return the current size of internal memory."""
+        return len(self.memory)
 
 
 class QNetwork(nn.Module):
@@ -51,16 +103,19 @@ class Agent:
     The RL Agent that interacts with and learns from the environment.
     """
 
-    def __init__(self, state_size, action_size):
+    def __init__(self, state_size, action_size, buffer_size=int(1e5), batch_size=64):
         """
         Initializes the Agent object.
 
         Args:
             state_size (int): Dimension of each state.
             action_size (int): Dimension of each action.
+            buffer_size (int): Maximum size of replay buffer.
+            batch_size (int): Size of each training batch.
         """
         self.state_size = state_size
         self.action_size = action_size
+        self.batch_size = batch_size
 
         # 1. Create the Q-Network
         # This is the "brain" that the agent will train.
@@ -70,7 +125,10 @@ class Agent:
         # Adam is a popular choice for optimizing the network's weights.
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=5e-4)
 
-        # 3. Epsilon-greedy action selection parameters
+        # 3. Initialize replay buffer
+        self.memory = ReplayBuffer(buffer_size, batch_size)
+
+        # 4. Epsilon-greedy action selection parameters
         self.epsilon = 1.0  # Starting value of epsilon
         self.epsilon_min = 0.01  # Minimum value of epsilon
         self.epsilon_decay = 0.995  # Rate at which epsilon decays after each episode
@@ -110,33 +168,39 @@ class Agent:
 
 # --- Update the Test Block ---
 if __name__ == "__main__":
-    print("--- Testing Agent ---")
+    print("--- Testing Replay Buffer ---")
 
+    BUFFER_SIZE = 100
+    BATCH_SIZE = 10
+
+    # 1. Instantiate the buffer
+    buffer = ReplayBuffer(buffer_size=BUFFER_SIZE, batch_size=BATCH_SIZE)
+    print("✅ Replay Buffer initialized.")
+
+    # 2. Add some dummy experiences
     STATE_SIZE_TEST = 9
-    ACTION_SIZE_TEST = 114000
+    for i in range(20):
+        dummy_state = np.random.rand(STATE_SIZE_TEST)
+        dummy_action = np.random.randint(100)
+        dummy_reward = np.random.rand()
+        dummy_next_state = np.random.rand(STATE_SIZE_TEST)
+        dummy_done = random.choice([True, False])
+        buffer.add(
+            dummy_state, dummy_action, dummy_reward, dummy_next_state, dummy_done
+        )
 
-    # 1. Instantiate the agent
-    agent = Agent(state_size=STATE_SIZE_TEST, action_size=ACTION_SIZE_TEST)
-    print("✅ Agent initialized successfully.")
+    print(f"Buffer size after adding 20 experiences: {len(buffer)}")
+    assert len(buffer) == 20
 
-    # 2. Create a dummy state from the environment
-    dummy_state = np.random.rand(STATE_SIZE_TEST)
+    # 3. Sample from the buffer
+    print("\nSampling a batch...")
+    states, actions, rewards, next_states, dones = buffer.sample()
 
-    # 3. Test the act() method
-    print("\nTesting act() method...")
+    print(f"Shape of states batch: {states.shape}")
+    print(f"Shape of actions batch: {actions.shape}")
+    print(f"Shape of rewards batch: {rewards.shape}")
 
-    # --- Test Exploration (epsilon = 1.0) ---
-    agent.epsilon = 1.0
-    print(f"Epsilon is {agent.epsilon}, so action should be random.")
-    action = agent.act(dummy_state)
-    print(f"Agent chose action (song index): {action}")
-    assert isinstance(action, int) or isinstance(action, np.int64)
+    assert states.shape == (BATCH_SIZE, STATE_SIZE_TEST)
+    assert actions.shape == (BATCH_SIZE, 1)
 
-    # --- Test Exploitation (epsilon = 0.0) ---
-    agent.epsilon = 0.0
-    print(f"\nEpsilon is {agent.epsilon}, so action should be from the network.")
-    action = agent.act(dummy_state)
-    print(f"Agent chose action (song index): {action}")
-    assert isinstance(action, int) or isinstance(action, np.int64)
-
-    print("\n✅ Test passed: Agent can be created and can choose an action.")
+    print("\n✅ Test passed: Replay Buffer can store and sample experiences correctly.")
