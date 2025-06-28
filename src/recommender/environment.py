@@ -43,14 +43,54 @@ class SongRecommenderEnvironment:
         # The state space size is the number of features.
         self.state_space_size = self.song_features.shape[1]
 
+        # Add a placeholder for the current state
+        self.current_state = None
+
         print("✅ Environment initialized successfully.")
         print(f"   - Number of songs (actions): {self.action_space_size}")
         print(f"   - Number of features (state size): {self.state_space_size}")
 
+    def reset(self):
+        """
+        Resets the environment to start a new user session (episode).
 
-# You can add this temporary block to test if the file runs correctly
+        It simulates a user starting their listening by picking a random song.
+        The features of this song become the initial state.
+
+        Returns:
+            np.ndarray: The initial state vector.
+        """
+        print("\n🔄 Resetting environment for new episode...")
+
+        # 1. Choose a random song index to start the session
+        random_song_index = np.random.randint(0, self.action_space_size)
+
+        # 2. Set the initial state to the features of that random song
+        self.current_state = self.song_features[random_song_index]
+
+        random_track_id = self.track_ids[random_song_index]
+        print(f"   - Starting song ID: {random_track_id}")
+        print("   - Initial state set.")
+
+        # 3. Return the initial state to the agent
+        return self.current_state
+
+
+# You can update the test block at the bottom of the file
 if __name__ == "__main__":
     try:
         env = SongRecommenderEnvironment()
+        initial_state = env.reset()
+
+        print("\n--- Testing Reset ---")
+        print(f"Shape of initial state: {initial_state.shape}")
+        print(f"Initial state vector (first 5 features): {initial_state[:5]}")
+
+        # Verify that the returned state matches the environment's current state
+        assert np.array_equal(initial_state, env.current_state)
+        print("\n✅ Test passed: reset() returned the correct state.")
+
     except FileNotFoundError:
         print("\nTest failed. Make sure your processed data exists.")
+    except Exception as e:
+        print(f"\nAn error occurred during testing: {e}")
