@@ -24,6 +24,10 @@ def preprocess_spotify_data():
         print(f"❌ Error: Raw data file not found at '{RAW_DATA_PATH}'.")
         return
 
+    # Shuffle the DataFrame to randomize the data
+    df = df.sample(frac=1).reset_index(drop=True)
+    print("✅ DataFrame has been shuffled.")
+
     # 2. Select the numerical audio features
     feature_columns = [
         "acousticness",
